@@ -12,12 +12,17 @@ function toNumber(value: string) {
 }
 
 function formatCurrency(value: number) {
-  return `$${value.toFixed(2)}`;
+  return new Intl.NumberFormat('en-NG', {
+    style: 'currency',
+    currency: 'NGN',
+    maximumFractionDigits: 2,
+  }).format(value);
 }
 
 export default function HomeScreen() {
   const [billAmount, setBillAmount] = useState('85');
   const [tipPercent, setTipPercent] = useState('18');
+  const [tipRating, setTipRating] = useState('Good service');
 
   const [totalExpense, setTotalExpense] = useState('240');
   const [splitCount, setSplitCount] = useState('3');
@@ -31,6 +36,12 @@ export default function HomeScreen() {
   const [goalSaved, setGoalSaved] = useState('750');
 
   const [habitCompleted, setHabitCompleted] = useState(4);
+  const [weeklyLimit, setWeeklyLimit] = useState('70000');
+
+  const weeklySpending = useMemo(() => {
+    const baseSpend = toNumber(totalExpense) + toNumber(billAmount);
+    return baseSpend + habitCompleted * 1200;
+  }, [billAmount, habitCompleted, totalExpense]);
 
   const tipResult = useMemo(() => {
     const bill = toNumber(billAmount);
@@ -39,6 +50,22 @@ export default function HomeScreen() {
     const total = bill + tipAmount;
     return { tipAmount, total };
   }, [billAmount, tipPercent]);
+
+  const budgetHealth = useMemo(() => {
+    const needs = toNumber(needsPercent);
+    const wants = toNumber(wantsPercent);
+    const savings = 100 - needs - wants;
+
+    if (savings < 0) {
+      return 'Your percentages are above 100%. Reduce needs/wants to stay realistic.';
+    }
+
+    if (savings >= 20) {
+      return 'Great! You are setting aside at least 20% for savings.';
+    }
+
+    return 'Try nudging wants down to increase your monthly savings.';
+  }, [needsPercent, wantsPercent]);
 
   const splitResult = useMemo(() => {
     const expense = toNumber(totalExpense);
@@ -62,6 +89,8 @@ export default function HomeScreen() {
   }, [goalSaved, goalTarget]);
 
   const habitPercent = Math.round((habitCompleted / 7) * 100);
+  const weeklyLimitValue = Math.max(1, toNumber(weeklyLimit));
+  const weeklyUsagePercent = Math.min(100, Math.round((weeklySpending / weeklyLimitValue) * 100));
 
   return (
     <ParallaxScrollView
@@ -79,6 +108,32 @@ export default function HomeScreen() {
       <ThemedView style={styles.card}>
         <ThemedText type="subtitle">1) Tip calculator</ThemedText>
         <ThemedText style={styles.helpText}>Quickly estimate a fair tip and final bill.</ThemedText>
+        <ThemedView style={styles.quickActions}>
+          <Pressable
+            style={styles.chipButton}
+            onPress={() => {
+              setTipPercent('10');
+              setTipRating('Basic service');
+            }}>
+            <ThemedText>10%</ThemedText>
+          </Pressable>
+          <Pressable
+            style={styles.chipButton}
+            onPress={() => {
+              setTipPercent('15');
+              setTipRating('Good service');
+            }}>
+            <ThemedText>15%</ThemedText>
+          </Pressable>
+          <Pressable
+            style={styles.chipButton}
+            onPress={() => {
+              setTipPercent('20');
+              setTipRating('Excellent service');
+            }}>
+            <ThemedText>20%</ThemedText>
+          </Pressable>
+        </ThemedView>
         <TextInput
           keyboardType="decimal-pad"
           value={billAmount}
@@ -96,6 +151,7 @@ export default function HomeScreen() {
           placeholderTextColor="#8a8a8a"
         />
         <ThemedText>Tip: {formatCurrency(tipResult.tipAmount)}</ThemedText>
+        <ThemedText>{tipRating}</ThemedText>
         <ThemedText type="defaultSemiBold">Total: {formatCurrency(tipResult.total)}</ThemedText>
       </ThemedView>
 
@@ -153,6 +209,7 @@ export default function HomeScreen() {
         <ThemedText>Needs: {formatCurrency(budgetResult.needs)}</ThemedText>
         <ThemedText>Wants: {formatCurrency(budgetResult.wants)}</ThemedText>
         <ThemedText type="defaultSemiBold">Savings: {formatCurrency(budgetResult.savings)}</ThemedText>
+        <ThemedText style={styles.helpText}>{budgetHealth}</ThemedText>
       </ThemedView>
 
       <ThemedView style={styles.card}>
@@ -213,6 +270,26 @@ export default function HomeScreen() {
           </Pressable>
         </ThemedView>
       </ThemedView>
+
+      <ThemedView style={styles.card}>
+        <ThemedText type="subtitle">6) Weekly spending guard</ThemedText>
+        <ThemedText style={styles.helpText}>
+          Set a weekly limit and see how close your tracked spending is.
+        </ThemedText>
+        <TextInput
+          keyboardType="decimal-pad"
+          value={weeklyLimit}
+          onChangeText={setWeeklyLimit}
+          style={styles.input}
+          placeholder="Weekly limit"
+          placeholderTextColor="#8a8a8a"
+        />
+        <ThemedText>Estimated spent: {formatCurrency(weeklySpending)}</ThemedText>
+        <ThemedView style={styles.progressTrack}>
+          <ThemedView style={[styles.progressFill, { width: `${weeklyUsagePercent}%` }]} />
+        </ThemedView>
+        <ThemedText type="defaultSemiBold">Usage: {weeklyUsagePercent}% of limit</ThemedText>
+      </ThemedView>
     </ParallaxScrollView>
   );
 }
@@ -231,6 +308,19 @@ const styles = StyleSheet.create({
   },
   helpText: {
     opacity: 0.8,
+  },
+  quickActions: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  chipButton: {
+    borderWidth: 1,
+    borderColor: '#6f8f98',
+    borderRadius: 999,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    backgroundColor: '#ffffffdd',
   },
   input: {
     borderWidth: 1,
