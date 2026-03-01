@@ -1,9 +1,18 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import { useCallback, useMemo, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
-import { Alert, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { PieChart } from '@/components/PieChart';
-import { getTransactions } from '@/lib/storage';
+import { getSavingsTarget, getTransactions, saveSavingsTarget } from '@/lib/storage';
 import { Transaction } from '@/lib/types';
 import { formatCurrency, getMonthKey, toCsv } from '@/lib/utils';
 
@@ -11,10 +20,12 @@ const COLORS = ['#1f6feb', '#ec4899', '#f59e0b', '#10b981', '#8b5cf6', '#ef4444'
 
 export default function SummaryScreen() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [targetInput, setTargetInput] = useState('');
 
   const load = useCallback(async () => {
-    const stored = await getTransactions();
-    setTransactions(stored);
+    const [storedTransactions, target] = await Promise.all([getTransactions(), getSavingsTarget()]);
+    setTransactions(storedTransactions);
+    setTargetInput(target ? `${target}` : '');
   }, []);
 
   useFocusEffect(
@@ -39,6 +50,18 @@ export default function SummaryScreen() {
     () => monthly.filter((item) => item.type === 'expense').reduce((sum, item) => sum + item.amount, 0),
     [monthly]
   );
+
+  const noSpendDays = useMemo(() => {
+    const today = new Date();
+    const daysInMonthSoFar = today.getDate();
+    const activeDays = new Set(
+      monthly
+        .filter((item) => item.type === 'expense')
+        .map((item) => new Date(item.date).toISOString().slice(0, 10))
+    );
+
+    return Math.max(daysInMonthSoFar - activeDays.size, 0);
+  }, [monthly]);
 
   const slices = useMemo(() => {
     const grouped = new Map<string, number>();
@@ -72,6 +95,21 @@ export default function SummaryScreen() {
     }
   };
 
+  const handleSaveTarget = async () => {
+    const parsed = Number(targetInput);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      Alert.alert('Invalid target', 'Enter a valid amount greater than or equal to 0.');
+      return;
+    }
+
+    try {
+      await saveSavingsTarget(parsed);
+      Alert.alert('Saved', 'Savings target updated.');
+    } catch {
+      Alert.alert('Save failed', 'Unable to save savings target right now.');
+    }
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.content}>
       <View style={styles.card}>
@@ -79,6 +117,21 @@ export default function SummaryScreen() {
         <Text style={styles.metric}>Income: {formatCurrency(income)}</Text>
         <Text style={styles.metric}>Expense: {formatCurrency(expense)}</Text>
         <Text style={styles.metric}>Net: {formatCurrency(income - expense)}</Text>
+        <Text style={styles.metric}>No-spend days: {noSpendDays}</Text>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.title}>Savings Target</Text>
+        <TextInput
+          keyboardType="decimal-pad"
+          onChangeText={setTargetInput}
+          placeholder="0.00"
+          style={styles.input}
+          value={targetInput}
+        />
+        <Pressable onPress={handleSaveTarget} style={styles.targetButton}>
+          <Text style={styles.targetButtonText}>Save Target</Text>
+        </Pressable>
       </View>
 
       <View style={styles.card}>
@@ -115,4 +168,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   exportText: { color: '#fff', fontWeight: '700' },
+  input: {
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+    color: '#111827',
+  },
+  targetButton: {
+    marginTop: 12,
+    backgroundColor: '#1f6feb',
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  targetButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+  },
 });

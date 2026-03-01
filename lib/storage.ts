@@ -4,6 +4,7 @@ import { Transaction } from './types';
 export const STORAGE_KEYS = {
   TRANSACTIONS: 'pocketwise_transactions',
   CATEGORIES: 'pocketwise_categories',
+  SAVINGS_TARGET: 'pocketwise_savings_target',
 } as const;
 
 const DEFAULT_CATEGORIES = ['Food', 'Transport', 'Bills', 'Shopping', 'Salary'] as const;
@@ -85,4 +86,34 @@ export async function deleteCategory(category: string): Promise<void> {
 
 export function getDefaultCategories(): readonly string[] {
   return DEFAULT_CATEGORIES;
+}
+
+export async function getSavingsTarget(): Promise<number> {
+  try {
+    const raw = await AsyncStorage.getItem(STORAGE_KEYS.SAVINGS_TARGET);
+    if (!raw) {
+      return 0;
+    }
+
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      return 0;
+    }
+
+    return parsed;
+  } catch (error) {
+    console.error('Failed to read savings target', error);
+    return 0;
+  }
+}
+
+export async function saveSavingsTarget(target: number): Promise<void> {
+  const normalized = Number.isFinite(target) && target > 0 ? target : 0;
+
+  try {
+    await AsyncStorage.setItem(STORAGE_KEYS.SAVINGS_TARGET, `${normalized}`);
+  } catch (error) {
+    console.error('Failed to save savings target', error);
+    throw error;
+  }
 }
