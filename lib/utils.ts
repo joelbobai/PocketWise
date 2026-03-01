@@ -25,13 +25,13 @@ export function getMonthKey(value: string): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
-export function toCsv(transactions: Transaction[]): string {
+export function toExcel(transactions: Transaction[]): string {
   const headers = ['id', 'amount', 'description', 'category', 'type', 'date'];
   const rows = transactions.map((item) =>
     [item.id, item.amount, item.description, item.category, item.type, item.date]
-      .map((field) => `"${String(field).replace(/"/g, '""')}"`)
-      .join(',')
+      .map((field) => String(field).replace(/\t/g, ' '))
+      .join('\t')
   );
 
-  return [headers.join(','), ...rows].join('\n');
+  return [headers.join('\t'), ...rows].join('\n');
 }
