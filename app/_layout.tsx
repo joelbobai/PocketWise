@@ -15,6 +15,7 @@ export default function RootLayout() {
         <Stack.Screen name="transactions" options={{ title: 'Transactions' }} />
         <Stack.Screen name="categories" options={{ title: 'Categories' }} />
         <Stack.Screen name="summary" options={{ title: 'Monthly Summary' }} />
+        <Stack.Screen name="calendar" options={{ title: 'Calendar Tracker' }} />
       </Stack>
     </GestureHandlerRootView>
   );
