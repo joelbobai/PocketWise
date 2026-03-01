@@ -14,7 +14,7 @@ import {
 import { PieChart } from '@/components/PieChart';
 import { getSavingsTarget, getTransactions, saveSavingsTarget } from '@/lib/storage';
 import { Transaction } from '@/lib/types';
-import { formatCurrency, getMonthKey, toCsv } from '@/lib/utils';
+import { formatCurrency, getMonthKey, toExcel } from '@/lib/utils';
 
 const COLORS = ['#1f6feb', '#ec4899', '#f59e0b', '#10b981', '#8b5cf6', '#ef4444'];
 
@@ -77,21 +77,21 @@ export default function SummaryScreen() {
     }));
   }, [monthly]);
 
-  const exportCsv = async () => {
+  const exportExcel = async () => {
     try {
-      const csv = toCsv(transactions);
-      const path = `${FileSystem.cacheDirectory}pocketwise-transactions.csv`;
-      await FileSystem.writeAsStringAsync(path, csv, {
+      const excelData = toExcel(transactions);
+      const path = `${FileSystem.cacheDirectory}pocketwise-transactions.xls`;
+      await FileSystem.writeAsStringAsync(path, excelData, {
         encoding: FileSystem.EncodingType.UTF8,
       });
 
       await Share.share({
         title: 'PocketWise Transactions',
-        message: `CSV saved at: ${path}`,
+        message: `Excel file saved at: ${path}`,
         url: path,
       });
     } catch {
-      Alert.alert('Export failed', 'Unable to export CSV right now.');
+      Alert.alert('Export failed', 'Unable to export Excel right now.');
     }
   };
 
@@ -139,8 +139,8 @@ export default function SummaryScreen() {
         <PieChart slices={slices} />
       </View>
 
-      <Pressable onPress={exportCsv} style={styles.exportButton}>
-        <Text style={styles.exportText}>Export All Transactions as CSV</Text>
+      <Pressable onPress={exportExcel} style={styles.exportButton}>
+        <Text style={styles.exportText}>Export All Transactions as Excel</Text>
       </Pressable>
     </ScrollView>
   );
